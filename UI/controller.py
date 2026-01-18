@@ -10,46 +10,79 @@ class Controller:
     def handle_crea_grafo(self, e):
         """ Handler per gestire creazione del grafo """""
         # TODO
-        durata_sec= int(self._view.txt_durata.value) * 60
+        try:
+            min_durata= float(self._view.txt_durata.value)
+        except ValueError:
+            self._view.show_alert("Inserire una durata valida")
+            return
 
-        self._model.build_graph(durata_sec)
+        self._model.load_albums(min_durata)
+        self._model.load_album_playlists()
+        self._model.build_graph()
 
-        n_nodes, n_edges = self._model.get_graph_details()
+        #aggiorna dropdown album
+        self._view.dd_album.options= [ft.dropdown.Option(a.title) for a in self._model.albums]
 
+        #aggiorno view
         self._view.lista_visualizzazione_1.controls.clear()
         self._view.lista_visualizzazione_1.controls.append(
-            ft.Text(f"Grafo creato: {n_nodes} album, {n_edges} archi")
+            ft.Text(f"Grafo creato: {len(self._model.G.nodes)} album, {len(self._model.G.edges)} archi")
         )
-
-        self.populate_dd_album(durata_sec)
         self._view.update()
 
-    def populate_dd_album(self, durata):
-        album = self._model.get_album(durata)
-
-        # popolo dropdown di album
-        for a in album:
-            self._view.dd_album.options.append(ft.dropdown.Option(key=a.id, data=a))
-
-        self._view.update()
 
     def get_selected_album(self, e):
         """ Handler per gestire la selezione dell'album dal dropdown """""
         # TODO
-        # e.control è il DropDown
-        selected_key = e.control.value  # salvo la chiave dell'opzione scelta
+        title= e.control.value
+        self._selected_album= next((a for a in self._model.albums if a.title == title), None)
 
-        for option in e.control.options:  # ciclo su tutte le opzioni del DropDown
-            if option.key == selected_key:  # quando trovo la chiave dell'opzione selezionata
-                self._view.dd_album_value = option.data  # salvo il valore reale associato all'opzione del dd
-                break
 
     def handle_analisi_comp(self, e): #?
         """ Handler per gestire l'analisi della componente connessa """""
         # TODO
-        album_scelto= self._view.dd_album.value
-        self._model.get_num_componente_connessa()
+        if not self._selected_album:
+            self._view.show_alert("Selezionare un album")
+            return
+
+        component= self._model.get_componenti(self._selected_album)
+        total_durata= sum(a.durata for a in component)
+
+        # aggiorno view
+        self._view.lista_visualizzazione_2.controls.clear()
+        self._view.lista_visualizzazione_2.controls.append(
+            ft.Text(f"Dimensione componente: {len(component)}")
+        )
+        self._view.lista_visualizzazione_2.controls.append(
+            ft.Text(f"Durata totale: {total_durata:.2f} minuti")
+        )
+        self._view.update()
+
 
     def handle_get_set_album(self, e):
         """ Handler per gestire il problema ricorsivo di ricerca del set di album """""
         # TODO
+        if not self._selected_album:
+            self._view.show_alert("Selezionare un album")
+            return
+        try:
+            max_durata= float(self._view.txt_durata_totale.value)
+        except ValueError:
+            self._view.show_alert("Inserire un valore numerico valido")
+            return
+
+        best_set= self._model.compute_best_set(self._selected_album, max_durata)
+
+        total_durata= sum(a.durata for a in best_set)
+
+        #aggiorno la view
+        self._view.lista_visualizzazione_3.controls.clear()
+        self._view.lista_visualizzazione_3.controls.append(
+            ft.Text(f"Set trovato ({len(best_set)} album, durata {total_durata:.2f} minuti) : ")
+        )
+        for a in best_set:
+            self._view.lista_visualizzazione_3.controls.append(
+                ft.Text(f"- {a.title} ({a.durata:.2f} min)")
+            )
+
+        self._view.update()

@@ -4,13 +4,14 @@ from dataclasses import dataclass
 class Album:
     id: int
     title: str
-    durata: int
+    artist_id: int
+    durata: float #in minuti
 
     def __str__(self):
-        return self.id
+        return self.title
 
     def __repr__(self):
-        return self.id
+        return self.title
 
     def __hash__(self):
         return hash(self.id)
